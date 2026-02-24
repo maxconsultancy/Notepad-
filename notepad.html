@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notepad</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e0c;
+    --surface: #1a1815;
+    --surface2: #242220;
+    --border: #2e2b28;
+    --accent: #c8a96e;
+    --accent2: #e8c98e;
+    --text: #e8e4dc;
+    --text-muted: #6b6560;
+    --text-dim: #9b9590;
+    --danger: #c06060;
+    --success: #6a9e6a;
+    --sidebar-w: 280px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* TOP BAR */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+    margin-right: 8px;
+  }
+
+  .topbar-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+  }
+
+  .btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn:hover { background: var(--surface2); color: var(--text); border-color: var(--text-muted); }
+  .btn.primary { border-color: var(--accent); color: var(--accent); }
+  .btn.primary:hover { background: var(--accent); color: var(--bg); }
+  .btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+  .btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  .word-count {
+    font-size: 10px;
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+
+  /* SEARCH BOX */
+  .search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .search-wrap input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 5px 10px 5px 28px;
+    width: 180px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-icon {
+    position: absolute;
+    left: 8px;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+
+  /* LAYOUT */
+  .layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: width 0.2s;
+  }
+
+  .sidebar.collapsed { width: 0; overflow: hidden; }
+
+  .sidebar-header {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .note-list { flex: 1; overflow-y: auto; }
+
+  .note-item {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.1s;
+    position: relative;
+  }
+
+  .note-item:hover { background: var(--surface2); }
+  .note-item.active { background: var(--surface2); border-left: 2px solid var(--accent); }
+
+  .note-item-title {
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+  }
+
+  .note-item-preview {
+    font-size: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+  }
+
+  .note-item-date {
+    font-size: 9px;
+    color: var(--text-muted);
+    opacity: 0.7;
+  }
+
+  .note-delete-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    padding: 4px;
+    transition: opacity 0.15s, color 0.15s;
+    border-radius: 3px;
+  }
+
+  .note-item:hover .note-delete-btn { opacity: 1; }
+  .note-delete-btn:hover { color: var(--danger); background: rgba(192,96,96,0.1); }
+
+  /* EDITOR AREA */
+  .editor-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  .toolbar-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+    margin: 0 4px;
+  }
+
+  .tool-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.1s;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .tool-btn:hover { background: var(--surface2); color: var(--text); }
+  .tool-btn.active { background: var(--accent); color: var(--bg); }
+  .tool-btn svg { width: 14px; height: 14px; }
+
+  .font-size-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .title-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    color: var(--text);
+    outline: none;
+    flex-shrink: 0;
+    transition: border-color 0.15s;
+  }
+
+  .title-input:focus { border-color: var(--accent); }
+  .title-input::placeholder { color: var(--text-muted); }
+
+  .editor-content {
+    flex: 1;
+    padding: 20px 24px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text);
+    outline: none;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  .editor-content:empty:before {
+    content: 'Start writing...';
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+
+  .editor-content p { margin-bottom: 8px; }
+  .editor-content h1 { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--accent2); margin-bottom: 12px; }
+  .editor-content h2 { font-family: 'Playfair Display', serif; font-size: 19px; color: var(--accent); margin-bottom: 10px; }
+  .editor-content h3 { font-size: 15px; color: var(--accent); margin-bottom: 8px; font-weight: 600; }
+  .editor-content blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 16px;
+    margin: 12px 0;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+  .editor-content code {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    color: var(--accent2);
+  }
+  .editor-content ul, .editor-content ol { padding-left: 24px; margin-bottom: 8px; }
+  .editor-content a { color: var(--accent); text-decoration: underline; }
+
+  /* STATUS BAR */
+  .statusbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 4px 16px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    font-size: 10px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .statusbar-item { display: flex; align-items: center; gap: 4px; }
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+  }
+  .statusbar-right { margin-left: auto; }
+
+  /* EMPTY STATE */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text-muted);
+  }
+
+  .empty-state svg { width: 48px; height: 48px; opacity: 0.3; }
+  .empty-state h2 { font-family: 'Playfair Display', serif; font-size: 20px; opacity: 0.5; }
+  .empty-state p { font-size: 11px; opacity: 0.4; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .modal-overlay.show { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    width: 400px;
+    max-width: 90vw;
+    transform: translateY(10px);
+    transition: transform 0.2s;
+  }
+
+  .modal-overlay.show .modal { transform: translateY(0); }
+
+  .modal h3 { font-family: 'Playfair Display', serif; color: var(--accent); margin-bottom: 12px; }
+  .modal p { font-size: 12px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.6; }
+  .modal input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 8px 12px;
+    outline: none;
+    margin-bottom: 16px;
+  }
+  .modal input:focus { border-color: var(--accent); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* FIND/REPLACE */
+  .find-bar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0 0 0 8px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 20;
+    transform: translateY(-100%);
+    transition: transform 0.2s;
+  }
+
+  .find-bar.show { transform: translateY(0); }
+
+  .find-bar input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 4px 8px;
+    width: 140px;
+    outline: none;
+  }
+
+  .find-bar input:focus { border-color: var(--accent); }
+  .find-bar label { font-size: 10px; color: var(--text-muted); }
+
+  .find-count { font-size: 10px; color: var(--text-muted); min-width: 50px; }
+
+  mark { background: rgba(200, 169, 110, 0.3); color: var(--accent2); border-radius: 2px; }
+  mark.current { background: rgba(200, 169, 110, 0.6); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  /* TOOLTIP */
+  [data-tip] { position: relative; }
+  [data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: -26px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 9px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 50;
+  }
+
+  .highlight-search { background: rgba(200,169,110,0.25); }
+
+  @media (max-width: 640px) {
+    .sidebar { width: 100%; position: absolute; z-index: 30; height: 100%; }
+    .sidebar.collapsed { width: 0; }
+    :root { --sidebar-w: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <span class="logo">Notepad</span>
+  <div class="topbar-divider"></div>
+  <button class="btn" onclick="toggleSidebar()" data-tip="Toggle sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+    Notes
+  </button>
+  <button class="btn primary" onclick="newNote()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    New
+  </button>
+  <button class="btn" onclick="saveNote()" id="saveBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    Save
+  </button>
+  <button class="btn" onclick="toggleFind()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    Find
+  </button>
+  <div class="topbar-divider"></div>
+  <button class="btn" onclick="exportNote('txt')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    TXT
+  </button>
+  <button class="btn" onclick="exportNote('html')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    HTML
+  </button>
+  <button class="btn" onclick="importNote()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Import
+  </button>
+  <input type="file" id="importInput" accept=".txt,.html,.md" style="display:none" onchange="handleImport(event)">
+  <div class="topbar-right">
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Search notes..." oninput="filterNotes(this.value)">
+    </div>
+    <div class="word-count" id="wordCount">0 words</div>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span>All Notes</span>
+      <span id="noteCount">0</span>
+    </div>
+    <div class="note-list" id="noteList"></div>
+  </div>
+
+  <!-- EDITOR -->
+  <div class="editor-area" id="editorArea">
+    <!-- FIND BAR -->
+    <div class="find-bar" id="findBar">
+      <label>Find:</label>
+      <input type="text" id="findInput" placeholder="Search..." oninput="doFind()">
+      <label>Replace:</label>
+      <input type="text" id="replaceInput" placeholder="Replace...">
+      <span class="find-count" id="findCount"></span>
+      <button class="btn" onclick="findPrev()">↑</button>
+      <button class="btn" onclick="findNext()">↓</button>
+      <button class="btn" onclick="doReplace()">Replace</button>
+      <button class="btn" onclick="doReplaceAll()">All</button>
+      <button class="btn danger" onclick="toggleFind()">✕</button>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="editor-toolbar">
+      <button class="tool-btn" onclick="fmt('bold')" data-tip="Bold">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg>
+      </button>
+      <button class="tool-btn" onclick="fmt('italic')" data-tip="Italic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>
+      </button>
+      <button class="tool-btn" onclick="fmt('underline')" data-tip="Underline">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg>
+      </button>
+      <button class="tool-btn" onclick="fmt('strikeThrough')" data-tip="Strikethrough">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><path d="M17.5 5.5A4.5 4.5 0 0 0 7 8c0 1.5.8 2.7 2 3.5"/><path d="M6.5 18.5A4.5 4.5 0 0 0 17 16c0-.8-.2-1.5-.5-2.1"/></svg>
+      </button>
+      <div class="toolbar-divider"></div>
+      <button class="tool-btn" onclick="fmtBlock('h1')" data-tip="Heading 1">H1</button>
+      <button class="tool-btn" onclick="fmtBlock('h2')" data-tip="Heading 2">H2</button>
+      <button class="tool-btn" onclick="fmtBlock('h3')" data-tip="Heading 3">H3</button>
+      <div class="toolbar-divider"></div>
+      <button class="tool-btn" onclick="fmt('insertUnorderedList')" data-tip="Bullet list">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg>
+      </button>
+      <button class="tool-btn" onclick="fmt('insertOrderedList')" data-tip="Numbered list">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
+      </button>
+      <button class="tool-btn" onclick="fmtBlock('blockquote')" data-tip="Quote">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg>
+      </button>
+      <div class="toolbar-divider"></div>
+      <button class="tool-btn" onclick="fmt('justifyLeft')" data-tip="Align left">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+      </button>
+      <button class="tool-btn" onclick="fmt('justifyCenter')" data-tip="Center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="10" x2="6" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="18" y1="18" x2="6" y2="18"/></svg>
+      </button>
+      <button class="tool-btn" onclick="fmt('justifyRight')" data-tip="Align right">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/></svg>
+      </button>
+      <div class="toolbar-divider"></div>
+      <select class="font-size-select" onchange="setFontSize(this.value)" data-tip="Font size">
+        <option value="">Size</option>
+        <option value="1">8px</option>
+        <option value="2">10px</option>
+        <option value="3">13px</option>
+        <option value="4">16px</option>
+        <option value="5">20px</option>
+        <option value="6">26px</option>
+      </select>
+      <div class="toolbar-divider"></div>
+      <button class="tool-btn" onclick="fmt('undo')" data-tip="Undo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+      </button>
+      <button class="tool-btn" onclick="fmt('redo')" data-tip="Redo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>
+      </button>
+      <div class="toolbar-divider"></div>
+      <button class="tool-btn" onclick="insertLink()" data-tip="Insert link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </button>
+      <button class="tool-btn" onclick="insertCodeBlock()" data-tip="Code block">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      </button>
+      <button class="tool-btn" onclick="insertHRule()" data-tip="Divider">—</button>
+      <div class="toolbar-divider"></div>
+      <label style="font-size:10px;color:var(--text-muted);">Color:</label>
+      <input type="color" id="colorPicker" value="#c8a96e" style="width:24px;height:24px;border:none;background:none;cursor:pointer;padding:0;border-radius:3px" onchange="setColor(this.value)" title="Text color">
+    </div>
+
+    <!-- TITLE -->
+    <input class="title-input" id="noteTitle" type="text" placeholder="Note title..." oninput="markDirty()">
+
+    <!-- EDITOR -->
+    <div class="editor-content" id="editor" contenteditable="true" spellcheck="true" oninput="onEditorInput()"></div>
+
+    <!-- EMPTY STATE (hidden when editing) -->
+    <!-- Status bar -->
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div class="statusbar">
+  <div class="statusbar-item">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Ready</span>
+  </div>
+  <span id="charCount">0 chars</span>
+  <span id="lineCount">0 lines</span>
+  <div class="statusbar-right" id="noteDate"></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3 id="modalTitle">Link</h3>
+    <p id="modalDesc">Enter the URL for the link.</p>
+    <input type="text" id="modalInput" placeholder="https://">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" id="modalOk" onclick="modalOkFn && modalOkFn()">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─── STATE ──────────────────────────────────────────────────────────────
+  let notes = JSON.parse(localStorage.getItem('notepad_notes') || '[]');
+  let currentId = null;
+  let dirty = false;
+  let findMatches = [];
+  let findIndex = 0;
+  let savedSelection = null;
+  let modalOkFn = null;
+  let sidebarOpen = true;
+  let autoSaveTimer = null;
+
+  // ─── INIT ────────────────────────────────────────────────────────────────
+  function init() {
+    renderNoteList();
+    if (notes.length > 0) {
+      openNote(notes[0].id);
+    } else {
+      newNote();
+    }
+  }
+
+  // ─── NOTES CRUD ──────────────────────────────────────────────────────────
+  function newNote() {
+    saveCurrentNote();
+    const note = {
+      id: Date.now().toString(),
+      title: '',
+      content: '',
+      created: new Date().toISOString(),
+      modified: new Date().toISOString()
+    };
+    notes.unshift(note);
+    persist();
+    openNote(note.id);
+  }
+
+  function openNote(id) {
+    saveCurrentNote();
+    currentId = id;
+    const note = notes.find(n => n.id === id);
+    if (!note) return;
+    document.getElementById('noteTitle').value = note.title;
+    document.getElementById('editor').innerHTML = note.content;
+    dirty = false;
+    updateStatus('Loaded', false);
+    updateCounts();
+    renderNoteList();
+    document.getElementById('noteDate').textContent = 'Modified: ' + fmtDate(note.modified);
+  }
+
+  function saveCurrentNote() {
+    if (!currentId) return;
+    const note = notes.find(n => n.id === currentId);
+    if (!note) return;
+    note.title = document.getElementById('noteTitle').value || 'Untitled';
+    note.content = document.getElementById('editor').innerHTML;
+    note.modified = new Date().toISOString();
+    persist();
+  }
+
+  function saveNote() {
+    saveCurrentNote();
+    dirty = false;
+    updateStatus('Saved ✓', true);
+    renderNoteList();
+    setTimeout(() => { if (!dirty) updateStatus('Ready', false); }, 2000);
+  }
+
+  function deleteNote(id, e) {
+    e.stopPropagation();
+    if (!confirm('Delete this note?')) return;
+    notes = notes.filter(n => n.id !== id);
+    persist();
+    if (currentId === id) {
+      currentId = null;
+      document.getElementById('noteTitle').value = '';
+      document.getElementById('editor').innerHTML = '';
+    }
+    if (notes.length > 0 && currentId === null) openNote(notes[0].id);
+    renderNoteList();
+  }
+
+  function persist() {
+    localStorage.setItem('notepad_notes', JSON.stringify(notes));
+    document.getElementById('noteCount').textContent = notes.length;
+  }
+
+  function markDirty() {
+    dirty = true;
+    updateStatus('Unsaved', false);
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(saveNote, 3000);
+  }
+
+  // ─── RENDER ──────────────────────────────────────────────────────────────
+  function renderNoteList(filter = '') {
+    const list = document.getElementById('noteList');
+    const filtered = filter
+      ? notes.filter(n => (n.title + n.content).toLowerCase().includes(filter.toLowerCase()))
+      : notes;
+    list.innerHTML = filtered.map(n => `
+      <div class="note-item ${n.id === currentId ? 'active' : ''}" onclick="openNote('${n.id}')">
+        <div class="note-item-title">${escHtml(n.title || 'Untitled')}</div>
+        <div class="note-item-preview">${getPreview(n.content)}</div>
+        <div class="note-item-date">${fmtDate(n.modified)}</div>
+        <button class="note-delete-btn" onclick="deleteNote('${n.id}', event)" title="Delete">✕</button>
+      </div>
+    `).join('');
+    document.getElementById('noteCount').textContent = notes.length;
+  }
+
+  function getPreview(html) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return escHtml((tmp.textContent || '').slice(0, 60)) || 'Empty note';
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function fmtDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  // ─── EDITOR ─────────────────────────────────────────────────────────────
+  function onEditorInput() {
+    updateCounts();
+    markDirty();
+  }
+
+  function updateCounts() {
+    const editor = document.getElementById('editor');
+    const text = editor.innerText || '';
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const chars = text.length;
+    const lines = text.split('\n').length;
+    document.getElementById('wordCount').textContent = words + ' words';
+    document.getElementById('charCount').textContent = chars + ' chars';
+    document.getElementById('lineCount').textContent = lines + ' lines';
+  }
+
+  function updateStatus(msg, ok) {
+    document.getElementById('statusText').textContent = msg;
+    document.getElementById('statusDot').style.background = ok ? '#6a9e6a' : dirty ? '#c8a96e' : '#6a9e6a';
+  }
+
+  // ─── FORMATTING ──────────────────────────────────────────────────────────
+  function fmt(cmd, val = null) {
+    document.getElementById('editor').focus();
+    document.execCommand(cmd, false, val);
+  }
+
+  function fmtBlock(tag) {
+    document.getElementById('editor').focus();
+    document.execCommand('formatBlock', false, tag);
+  }
+
+  function setFontSize(val) {
+    if (!val) return;
+    fmt('fontSize', val);
+  }
+
+  function setColor(val) {
+    document.getElementById('editor').focus();
+    fmt('foreColor', val);
+  }
+
+  function insertLink() {
+    savedSelection = saveSelection();
+    showModal('Insert Link', 'Enter the URL:', 'https://', (url) => {
+      restoreSelection(savedSelection);
+      if (url) fmt('createLink', url);
+    });
+  }
+
+  function insertCodeBlock() {
+    const sel = window.getSelection();
+    const txt = sel.toString() || 'code';
+    fmt('insertHTML', `<code>${escHtml(txt)}</code>`);
+  }
+
+  function insertHRule() {
+    fmt('insertHTML', '<hr style="border:none;border-top:1px solid #2e2b28;margin:16px 0">');
+  }
+
+  // ─── SELECTION HELPERS ───────────────────────────────────────────────────
+  function saveSelection() {
+    const sel = window.getSelection();
+    if (sel.rangeCount > 0) return sel.getRangeAt(0).cloneRange();
+    return null;
+  }
+
+  function restoreSelection(range) {
+    if (!range) return;
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  // ─── FIND & REPLACE ──────────────────────────────────────────────────────
+  function toggleFind() {
+    const bar = document.getElementById('findBar');
+    bar.classList.toggle('show');
+    if (bar.classList.contains('show')) {
+      document.getElementById('findInput').focus();
+    } else {
+      clearHighlights();
+    }
+  }
+
+  function doFind() {
+    const term = document.getElementById('findInput').value;
+    clearHighlights();
+    findMatches = [];
+    findIndex = 0;
+    if (!term) { document.getElementById('findCount').textContent = ''; return; }
+
+    const editor = document.getElementById('editor');
+    const html = editor.innerHTML;
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const newHtml = html.replace(new RegExp(escaped, 'gi'), (m) => `<mark class="find-match">${m}</mark>`);
+    editor.innerHTML = newHtml;
+    findMatches = editor.querySelectorAll('.find-match');
+    document.getElementById('findCount').textContent = `${findMatches.length} found`;
+    if (findMatches.length) highlightCurrent();
+  }
+
+  function highlightCurrent() {
+    findMatches.forEach((m, i) => m.classList.toggle('current', i === findIndex));
+    if (findMatches[findIndex]) findMatches[findIndex].scrollIntoView({ block: 'center' });
+    document.getElementById('findCount').textContent = `${findIndex + 1}/${findMatches.length}`;
+  }
+
+  function findNext() {
+    if (!findMatches.length) return;
+    findIndex = (findIndex + 1) % findMatches.length;
+    highlightCurrent();
+  }
+
+  function findPrev() {
+    if (!findMatches.length) return;
+    findIndex = (findIndex - 1 + findMatches.length) % findMatches.length;
+    highlightCurrent();
+  }
+
+  function doReplace() {
+    const editor = document.getElementById('editor');
+    if (!findMatches[findIndex]) return;
+    const replacement = document.getElementById('replaceInput').value;
+    findMatches[findIndex].outerHTML = escHtml(replacement);
+    doFind();
+  }
+
+  function doReplaceAll() {
+    const term = document.getElementById('findInput').value;
+    const repl = document.getElementById('replaceInput').value;
+    if (!term) return;
+    const editor = document.getElementById('editor');
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    editor.innerHTML = editor.innerHTML.replace(
+      new RegExp(`<mark class="find-match">${escaped}</mark>|${escaped}`, 'gi'),
+      escHtml(repl)
+    );
+    doFind();
+  }
+
+  function clearHighlights() {
+    const editor = document.getElementById('editor');
+    editor.querySelectorAll('mark.find-match').forEach(m => {
+      m.outerHTML = m.textContent;
+    });
+    findMatches = [];
+  }
+
+  // ─── SIDEBAR ─────────────────────────────────────────────────────────────
+  function toggleSidebar() {
+    sidebarOpen = !sidebarOpen;
+    document.getElementById('sidebar').classList.toggle('collapsed', !sidebarOpen);
+  }
+
+  // ─── FILTER ──────────────────────────────────────────────────────────────
+  function filterNotes(val) {
+    renderNoteList(val);
+  }
+
+  // ─── EXPORT ──────────────────────────────────────────────────────────────
+  function exportNote(type) {
+    const note = notes.find(n => n.id === currentId);
+    if (!note) return;
+    let content, mime, ext;
+    if (type === 'txt') {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = note.content;
+      content = note.title + '\n' + '='.repeat(note.title.length) + '\n\n' + (tmp.textContent || '');
+      mime = 'text/plain'; ext = 'txt';
+    } else {
+      content = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${escHtml(note.title)}</title></head><body><h1>${escHtml(note.title)}</h1>${note.content}</body></html>`;
+      mime = 'text/html'; ext = 'html';
+    }
+    const blob = new Blob([content], { type: mime });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (note.title || 'note') + '.' + ext;
+    a.click();
+  }
+
+  function importNote() {
+    document.getElementById('importInput').click();
+  }
+
+  function handleImport(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target.result;
+      const note = {
+        id: Date.now().toString(),
+        title: file.name.replace(/\.[^.]+$/, ''),
+        content: file.name.endsWith('.html') ? text : `<p>${escHtml(text).replace(/\n/g, '</p><p>')}</p>`,
+        created: new Date().toISOString(),
+        modified: new Date().toISOString()
+      };
+      notes.unshift(note);
+      persist();
+      openNote(note.id);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  // ─── MODAL ───────────────────────────────────────────────────────────────
+  function showModal(title, desc, placeholder, onOk) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalDesc').textContent = desc;
+    const input = document.getElementById('modalInput');
+    input.placeholder = placeholder;
+    input.value = '';
+    modalOkFn = () => { onOk(input.value); closeModal(); };
+    document.getElementById('modalOverlay').classList.add('show');
+    setTimeout(() => input.focus(), 100);
+    input.onkeydown = (e) => { if (e.key === 'Enter') modalOkFn(); if (e.key === 'Escape') closeModal(); };
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('show');
+    modalOkFn = null;
+  }
+
+  // ─── KEYBOARD SHORTCUTS ──────────────────────────────────────────────────
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      switch (e.key) {
+        case 's': e.preventDefault(); saveNote(); break;
+        case 'n': e.preventDefault(); newNote(); break;
+        case 'f': e.preventDefault(); toggleFind(); break;
+        case 'b': e.preventDefault(); fmt('bold'); break;
+        case 'i': e.preventDefault(); fmt('italic'); break;
+        case 'u': e.preventDefault(); fmt('underline'); break;
+      }
+    }
+    if (e.key === 'Escape' && document.getElementById('findBar').classList.contains('show')) {
+      toggleFind();
+    }
+  });
+
+  // ─── START ───────────────────────────────────────────────────────────────
+  init();
+</script>
+</body>
+</html>
